@@ -74,15 +74,15 @@ cd Docker-NGINX-Certbot-ModSecurity/ && \
 pip install -r requirements.txt
 ```
 
-- 3: Read through the `settings.env` file and set the appropriate settings
+- 2: Read through the `settings.env` file and set the appropriate settings
 
-- 4: Generate all the appropriate configuration files (based on the content of the `settings.env` file):
+- 3: Generate all the appropriate configuration files (based on the content of the `settings.env` file):
 
 ```bash
 python GenConfFiles.py --env_file settings.env
 ```
 
-- 2: Generate an SSL dhparam file (the filename should be the same as the one set in the `settings.env` file) with openssl:
+- 4: Generate an SSL dhparam file (the filename should be the same as the one set in the `settings.env` file) with openssl:
 
 ```bash
 # The path "nginx/dhparams" is hardcoded in the GenConfFiles.py file.
