@@ -1,5 +1,5 @@
 version: "3"
-
+{% block config_context %}
 services:
 
   # Image build: WAF3 dependencies. Build an intermediate WAF3 base image to 
@@ -26,7 +26,7 @@ services:
       dockerfile: Dockerfile
     container_name: nginx0
     environment:
-      CERTBOT_EMAIL: testemail@testemail.com
+      CERTBOT_EMAIL: {{ CERTBOT_EMAIL }}
     ports:
       # Map the ports on the host to ports in the docker container:
       - 80:80/tcp
@@ -49,7 +49,7 @@ services:
         - ./nginx/conf.d:/etc/nginx/user.conf.d:ro
         # The path to where Diffie-Hellman (DH) certificates are located.
         # Use ":ro" - read only access
-        - ./nginx/dhparams:/etc/nginx/dhparams:ro
+        - ./nginx/dhparams:{{ NGINX_DHPARAMS_DIR }}:ro
 
   # Service: The main web application we should direct traffic to.
   web:
@@ -59,4 +59,4 @@ services:
       dockerfile: Dockerfile
     container_name: web0
 
-
+{% endblock %}

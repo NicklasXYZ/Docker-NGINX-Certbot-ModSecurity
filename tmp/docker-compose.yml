@@ -1,0 +1,15 @@
+version: "3"
+
+services:
+    waf3_dep:
+        build:
+            context: ./waf_dep
+            dockerfile: Dockerfile
+        image: nicklasxyz/waf3_dep:latest
+    waf3:
+        build:
+            context: ./waf-3
+            dockerfile: Dockerfile
+        image: nicklasxyz/waf3:latest
+        # ports:
+        #     - "80:80"

@@ -1,0 +1,201 @@
+{%- block config_context -%}
+# Proxy traffic from nginx going to the location "django daphne webserver
+upstream upstream {
+    # Specify where incoming traffic should be directed to.
+    # The webserver is running as a docker compose service called "web".
+    # This service is listening on port "8080". 
+    server web:8080;
+}
+
+{% if TRUSTED_ORIGINS == "true" -%} 
+# Restrict access to the backend by only including trusted origins in
+# the "Access-Control-Allow-Origin" response header.
+# If a given origin matches an origin specified below, then this origin
+# will be included in the response header. 
+map $http_origin $origin_allowed {
+    default 0;
+    {% for item in NGINX_TRUSTED_ORIGINS -%}
+    {{ NGINX_TRUSTED_ORIGINS[item] }} 1;
+    {% endfor %}
+}
+map $origin_allowed $origin {
+    default "";
+    1 $http_origin;
+}
+{%- endif -%} 
+
+include       mime.types;
+default_type  application/octet-stream;
+
+{%- for item in NGINX_SERVER_NAMES %} 
+
+server {
+
+{% if item == "localhost" %} 
+    listen 80;
+    server_name 127.0.0.1;
+{% else %} 
+    listen              443 ssl;
+    listen              [::]:443 ssl;
+    {% for i in range(NGINX_SERVER_NAMES[item] | length) -%} server_name         {{ NGINX_SERVER_NAMES[item][i] }} {% endfor %};
+{% endif %} 
+
+    #-----------------------------------------------------------------------#
+    #                         Enable ModSecurity WAF                        #
+    #-----------------------------------------------------------------------#
+	modsecurity on;
+    modsecurity_rules_file modsecurity.conf;
+
+    #-----------------------------------------------------------------------#
+    #                   Enable nginx security features                      #
+    #-----------------------------------------------------------------------#
+    # Do not show the nginx version number in headers.
+    server_tokens off;
+
+    # Use Strict Transport Security (HSTS) to declare that clients 
+    # should access resources using a secure connection (HTTPS).
+    # The browser will refuse all HTTP connections and prevent users
+    # from accepting insecure SSL certificates.
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header Content-Security-Policy "upgrade-insecure-requests" always;
+
+    # Stop pages from loading if cross-site scripting is detected
+    add_header X-XSS-Protection          "1; mode=block" always;
+
+    # add_header X-Content-Type-Options nosniff;
+    # Add a X-Frame-Options HTTP response header to indicate that a browser 
+    # should not be allowed to render a page in a <frame> or an <iframe>.
+    # This can prevent "clickjacking" attacks. 
+    add_header X-Frame-Options           "SAMEORIGIN" always;
+
+{%- if item == "localhost" -%}
+{% else %} 
+    #-----------------------------------------------------------------------#
+    #                    Configure SSL and cipher suites                    #
+    #-----------------------------------------------------------------------#
+    # Only allow new ssl protocols. Old protocols should not be used.
+    # Enable TLSv1.2 and TLSv1.3 --> Disables SSLv3.0, TLSv1.0 and TLSv1.1
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # Let the client device choose its preferred encryption method based on 
+    # the hardware capabilities of the device.
+    #ssl_prefer_server_ciphers off;
+
+    # In case a Diffie-Hellman (DHE) key exchange algorithm is used, we need supply 
+    # DHE certificates. The following directory contains DHE certificates for
+    # DHE cipher suites
+    #ssl_dhparam {{ NGINX_DHPARAMS_DIR }}/{{ NGINX_DHPARAMS_FILE }};
+
+    # Enable modern TLS cipher suites
+    #ssl_ciphers "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256";
+
+    #-----------------------------------------------------------------------#
+    #                      Configure SSL certificates                       #
+    #-----------------------------------------------------------------------#
+    ssl_certificate     /etc/letsencrypt/live/{{ item }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ item }}/privkey.pem;
+    # Create a cache of the session parameters that apply to each SSL/TLS connection.
+    # This should reduce the number of handshakes needed and should thus can significantly
+    # improve performance.
+    ssl_session_cache shared:SSL:20m; # A 1-MB shared cache can hold approximately 4,000 sessions.
+    ssl_session_timeout 4h;           # Reuse sessions stored in cache that are less than 4 hours old.
+    ssl_session_tickets  off;
+{% endif %} 
+
+    #-----------------------------------------------------------------------#
+    #                   Enable the compression of responses                 #
+    #-----------------------------------------------------------------------#
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 10240;
+    gzip_proxied expired no-cache no-store private auth;
+    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml;
+
+    #-----------------------------------------------------------------------#
+    #                           Setup URL routing                           #
+    #-----------------------------------------------------------------------#
+
+    # Do not log failed attempts to get the file: favicon.ico
+    location = /favicon.ico {
+         access_log off;
+         error_log off;
+         log_not_found off;
+    }
+
+    # Do not log failed attempts to get the file: robots.txt
+    location = /robots.txt {
+        log_not_found off;
+         error_log off;
+        access_log off;
+    }
+
+    location / {
+        # Proxy all incoming traffic that is going to /api/ to here:
+        proxy_pass http://upstream;
+		proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+        # HTTP protocol version for proxying.
+        # For Websockets and keepalive connections version 1.1 is needed.
+        proxy_http_version 1.1;
+		proxy_redirect off;
+		proxy_buffering off;
+		proxy_force_ranges on;
+
+        # Add request headers that should be passed to Django Daphne webserver.
+        proxy_set_header  Host              $http_host;
+        proxy_set_header  X-Real-IP         $remote_addr;
+        proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header  X-Forwarded-Host  $server_name;
+        proxy_set_header  X-Forwarded-Proto $scheme;
+        proxy_set_header  Upgrade           $http_upgrade;
+        proxy_set_header  Connection        "upgrade";
+        proxy_redirect off;
+
+        #-------------------------------------------------------------------#
+        #                       Add CORS response headers                   #
+        #-------------------------------------------------------------------#
+        # Add headers that should be returned in a response to a client.
+        # For preflight (OPTIONS) requests we should add the following headers listed below:
+        if ($request_method = "OPTIONS") {
+        {% if TRUSTED_ORIGINS == "true" %}
+            # Production setting.
+            # This setting sets the requesting origin as an allowed origin, if it is included in the list at the top of this configuration file.
+            add_header Access-Control-Allow-Origin $origin always;
+        {% else %}
+            # Do not use this option in production. It should only be used while testing things.
+            # This setting alywas sets the requesting origin as an allowed origin.
+            add_header Access-Control-Allow-Origin $http_origin always;
+        {% endif %}
+            add_header Access-Control-Allow-Methods "GET, POST, PATCH, PUT, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers "X-uri, Host, Referer, Accept-Encoding, Origin, Content-Type, Accept, Authorization, X-CustomHeader, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control" always;
+            add_header Access-Control-Allow-Credentials "true" always;
+
+            add_header Access-Control-Max-Age 1728000;
+            add_header Content-Type "text/plain charset=UTF-8";
+            add_header Content-Length 0;
+            return 204;
+        }
+        # For all other types of requests (GET, POST, PATCH, PUT and DELETE) we add the following headers listed below:
+        if ($request_method ~ "(GET|POST|PATCH|PUT|DELETE)") {
+        {% if TRUSTED_ORIGINS == "true" %}
+            # Production setting.
+            # This setting sets the requesting origin as an allowed origin, if it is included in the list at the top of this configuration file.
+            add_header Access-Control-Allow-Origin $origin always;
+        {% else %}
+            # Do not use this option in production. It should only be used while testing things.
+            # This setting alywas sets the requesting origin as an allowed origin.
+            add_header Access-Control-Allow-Origin $http_origin always;
+        {% endif %}
+            add_header Access-Control-Allow-Methods "GET, POST, PATCH, PUT, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers "X-uri, Host, Referer, Accept-Encoding, Origin, Content-Type, Accept, Authorization, X-CustomHeader, Keep-Alive, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control" always;
+            add_header Access-Control-Allow-Credentials "true" always;
+        }
+    }
+
+    # Redirect server error pages to the static page /50x.html
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   html;
+    }
+}
+{% endfor %}
+{%- endblock -%}

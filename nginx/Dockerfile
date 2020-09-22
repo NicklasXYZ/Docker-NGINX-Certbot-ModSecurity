@@ -1,0 +1,9 @@
+
+# Pull a non-offical user-submitted docker base image: https://github.com/staticfloat/docker-nginx-certbot
+# This docker image sets up NGINX and uses Certbot to obtain SSL certificates with Let's Encrypt.
+FROM waf3:latest
+
+# Create a new directory within the docker container.
+# This directory is going to hold Diffie-Hellman (DHE) certificate files needed by the DHE cipher suites.
+RUN mkdir -p /etc/nginx/dhparams
+
