@@ -5,4 +5,4 @@ MarkupSafe==1.1.1
 marshmallow==3.8.0
 numpy==1.19.1
 python-dotenv==0.14.0
-rank-bm25==0.2.1
+

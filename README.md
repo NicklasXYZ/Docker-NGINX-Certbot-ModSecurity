@@ -60,7 +60,7 @@ A rough overview and a description of the most important files and directories i
 ## Prerequisites & Usage
 
 - Git
-- Python 3 along with the pip package manager to automatically install all Python dependencies
+- **Python 3.8** along with the pip package manager to automatically install all Python dependencies
 - Docker & Docker Compose
 
 
