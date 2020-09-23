@@ -1,7 +1,5 @@
 # Docker + NGINX + TLS Termination + ModSecurity Web Application Firewall 3 (WAF3)
 
-Docker-NGINX-Certbot-ModSecurity
-
 <center>
 
 ![](illustrations/snapshot.png)
@@ -71,8 +69,8 @@ A rough overview and a description of the most important files and directories i
 - 1: Pull the repository, navigate to the root directory of the repository and install Python dependencies by running:
 
 ```bash
-git pull && \
-cd && \
+git pull https://github.com/NicklasXYZ/Docker-NGINX-Certbot-ModSecurity.git && \
+cd Docker-NGINX-Certbot-ModSecurity/ && \
 pip install -r requirements.txt
 ```
 
