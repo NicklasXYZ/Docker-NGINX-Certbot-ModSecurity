@@ -1,9 +1,37 @@
 {% block config_context %}
-# Pull a non-offical user-submitted docker base image: https://github.com/staticfloat/docker-nginx-certbot
-# This docker image sets up NGINX and uses Certbot to obtain SSL certificates with Let's Encrypt.
+# Use a locally built base image
 FROM waf3:latest
 
 # Create a new directory within the docker container.
 # This directory is going to hold Diffie-Hellman (DHE) certificate files needed by the DHE cipher suites.
 RUN mkdir -p {{ NGINX_DHPARAMS_DIR }}
+
+# Install dependencies
+RUN apk update && apk add --no-cache --upgrade grep && \
+    apk add python3 \
+        python3-dev \
+        libffi \
+        libffi-dev \
+        procps \
+        gettext \
+        sed && \
+    curl -L "https://bootstrap.pypa.io/get-pip.py" | python3 && \
+    pip install -U cffi certbot && \
+    apk del python3-dev libffi-dev
+
+# Copy in scripts for certbot
+COPY ./scripts/ /scripts
+RUN chmod +x /scripts/*.sh
+
+# Add /scripts/startup directory to source more startup scripts
+RUN mkdir -p /scripts/startup
+
+# Copy in default nginx configuration (which just forwards ACME requests to
+# certbot, or redirects to HTTPS, but has no HTTPS configurations by default).
+RUN rm -f /etc/nginx/conf.d/*
+COPY nginx_conf.d/ /etc/nginx/conf.d/
+
+ENTRYPOINT []
+CMD ["/bin/bash", "/scripts/entrypoint.sh"]
+
 {% endblock %}

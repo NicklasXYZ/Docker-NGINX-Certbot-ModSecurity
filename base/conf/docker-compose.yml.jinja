@@ -2,24 +2,27 @@ version: "3"
 {% block config_context %}
 services:
 
-  # Image build: WAF3 dependencies. Build an intermediate WAF3 base image to 
-  # save time on subsequent builds.
   waf3_dep:
-      build:
-          context: ./waf3_dep
-          dockerfile: Dockerfile
-      image: waf3_dep:latest
+    # Image build: WAF3 dependencies. Build an intermediate WAF3 base image to 
+    # save time on subsequent builds.
+    build:
+        context: ./waf3_dep
+        dockerfile: Dockerfile
+    image: waf3_dep:latest
 
-  # Image build: WAF3. Use the intermediate "waf3_dep" base image to build the
-  # final waf3 image.
   waf3:
-      build:
-          context: ./waf3
-          dockerfile: Dockerfile
-      image: waf3:latest
+    # Image build: WAF3. Use the intermediate "waf3_dep" base image to build the final 
+    # "waf3" image. This image is simply NGINX built with the ModSecurity Web 
+    # Application Firewall (WAF) extension. 
+    build:
+        context: ./waf3
+        dockerfile: Dockerfile
+    image: waf3:latest
     
-  # Service: NGINX used as a reverse proxy.
   nginx:
+    # Image build: NGINX. Use the "waf3" base image to build the "nginx" image that will
+    # eventually run as a service. When the container is initially brought up it will 
+    # call Certbot to obtain TLS/SSL certificates.
     restart: always
     build:
       context: ./nginx

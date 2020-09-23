@@ -9,6 +9,7 @@
 import os
 import argparse
 import json
+import shutil
 #------------------------------------------------------------------------------#
 #                             Import thrid party packages                      #
 #------------------------------------------------------------------------------#
@@ -130,11 +131,37 @@ def render_templates(jinja_templates, other_vars, env_vars, prefix = ""):
 def generate_directories(args, other_vars, env_vars):
     """
     """
-    dir_list = []
-    # # Create required output directories if they're missing
-    # for dir in dir_list:
-    #     if not os.path.exists(dir):
-    #         os.makedirs(dir, exist_ok = True)
+    dir_list = [
+        "nginx/conf.d",
+        "nginx/dhparams",
+        "nginx/https",
+        "nginx/nginx_conf.d",
+        "nginx/scripts",        
+    ]
+    # Create required output directories if they're missing
+    for dir in dir_list:
+        os.makedirs(dir, exist_ok = True)
+        if not os.path.exists(dir):
+            pass
+        else:
+            print("NOTE: Directories already exists! Files are overwritten...")
+
+# Copy in default directories
+#------------------------------------------------------------------------------#
+def copy_directories(args, other_vars, env_vars):
+    """
+    """
+    dir_list = {
+        "base/nginx_conf.d": "nginx/nginx_conf.d",
+        "base/scripts": "nginx/scripts",
+    }
+    for dir in dir_list:
+        shutil.copytree(dir, dir_list[dir], dirs_exist_ok = True)
+        if not os.path.exists(dir):
+            pass
+        else:
+            print("NOTE: Directories already exists! Files are overwritten...")
+
 
 # Main function call...
 #------------------------------------------------------------------------------#
@@ -143,7 +170,8 @@ def main(args, other_vars):
     """
     # Parse file containing environment variables to be defined and used
     env_vars = parse_env_vars()
-    # generate_directories(args, other_vars, env_vars)
+    generate_directories(args, other_vars, env_vars)
+    copy_directories(args, other_vars, env_vars)
     jinja_templates = load_jinja_templates(env_vars)
     # render_templates(jinja_templates, other_vars, env_vars, prefix = "testing")
     render_templates(jinja_templates, other_vars, env_vars, prefix = "")

@@ -14,8 +14,7 @@ template_user_configs
 auto_enable_configs
 
 # Start up nginx, save PID so we can reload config inside of run_certbot.sh
-nginx -g "daemon off;" &
-NGINX_PID=$!
+nginx -g "daemon off;" & NGINX_PID=$!
 
 # Lastly, run startup scripts
 for f in /scripts/startup/*.sh; do
@@ -38,11 +37,11 @@ while [ true ]; do
     # Run certbot, tell nginx to reload its config
     echo "Run certbot"
     /scripts/run_certbot.sh
-    kill -HUP $NGINX_PID
+    # kill -HUP $NGINX_PID
+    nginx -s reload
 
     # Sleep for 1 week
-    sleep 604810 &
-    SLEEP_PID=$!
+    sleep 604810 & SLEEP_PID=$!
 
     # Wait for 1 week sleep or nginx
     wait -n "$SLEEP_PID" "$NGINX_PID"
