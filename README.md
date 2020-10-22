@@ -69,7 +69,7 @@ A rough overview and a description of the most important files and directories i
 - 1: Pull the repository, navigate to the root directory of the repository and install Python dependencies by running:
 
 ```bash
-git pull https://github.com/NicklasXYZ/Docker-NGINX-Certbot-ModSecurity.git && \
+git clone https://github.com/NicklasXYZ/Docker-NGINX-Certbot-ModSecurity.git && \
 cd Docker-NGINX-Certbot-ModSecurity/ && \
 pip install -r requirements.txt
 ```
